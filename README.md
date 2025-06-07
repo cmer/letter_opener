@@ -37,6 +37,19 @@ LetterOpener.configure do |config|
   # scheme doesn't work for you.
   # Default value is blank
   config.file_uri_scheme = 'file://///wsl$/Ubuntu-18.04'
+
+  # To control whether emails are automatically opened in the browser.
+  # Default value is `true`
+  config.open_in_browser = true
+
+  # You can also disable automatic opening completely
+  config.open_in_browser = false
+
+  # Or use a callable to conditionally open emails based on email properties
+  config.open_in_browser = ->(mail) { mail.to.include?('important@example.com') }
+  
+  # Example: Only open emails with "urgent" in the subject
+  config.open_in_browser = ->(mail) { mail.subject&.include?('urgent') }
 end
 ```
 
@@ -47,7 +60,9 @@ If you aren't using Rails, this can be easily set up with the Mail gem. Just set
 ```rb
 require "letter_opener"
 Mail.defaults do
-  delivery_method LetterOpener::DeliveryMethod, location: File.expand_path('../tmp/letter_opener', __FILE__)
+  delivery_method LetterOpener::DeliveryMethod, 
+    location: File.expand_path('../tmp/letter_opener', __FILE__),
+    open_in_browser: false  # Optional: disable automatic browser opening
 end
 ```
 
@@ -57,7 +72,10 @@ The method is similar if you're using the Pony gem:
 require "letter_opener"
 Pony.options = {
   via: LetterOpener::DeliveryMethod,
-  via_options: {location: File.expand_path('../tmp/letter_opener', __FILE__)}
+  via_options: {
+    location: File.expand_path('../tmp/letter_opener', __FILE__),
+    open_in_browser: false  # Optional: disable automatic browser opening
+  }
 }
 ```
 
@@ -65,7 +83,9 @@ Alternatively, if you are using ActionMailer directly (without Rails) you will n
 
 ```rb
 require "letter_opener"
-ActionMailer::Base.add_delivery_method :letter_opener, LetterOpener::DeliveryMethod, :location => File.expand_path('../tmp/letter_opener', __FILE__)
+ActionMailer::Base.add_delivery_method :letter_opener, LetterOpener::DeliveryMethod, 
+  location: File.expand_path('../tmp/letter_opener', __FILE__),
+  open_in_browser: false  # Optional: disable automatic browser opening
 ActionMailer::Base.delivery_method = :letter_opener
 ```
 
