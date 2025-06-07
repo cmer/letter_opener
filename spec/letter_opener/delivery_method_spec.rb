@@ -413,4 +413,156 @@ describe LetterOpener::DeliveryMethod do
       end
     end
   end
+
+  context 'open_in_browser configuration' do
+    after do
+      LetterOpener.configure do |config|
+        config.open_in_browser = true
+      end
+    end
+
+    context 'when open_in_browser is true (default)' do
+      it 'opens the email in browser' do
+        expect(Launchy).to receive(:open)
+
+        Mail.deliver do
+          from 'foo@example.com'
+          to   'bar@example.com'
+          body 'Test message'
+        end
+      end
+    end
+
+    context 'when open_in_browser is false' do
+      before do
+        Mail.defaults do
+          delivery_method LetterOpener::DeliveryMethod, 
+            location: File.expand_path('../../../tmp/letter_opener', __FILE__),
+            open_in_browser: false
+        end
+      end
+
+      it 'does not open the email in browser' do
+        expect(Launchy).not_to receive(:open)
+
+        Mail.deliver do
+          from 'foo@example.com'
+          to   'bar@example.com'
+          body 'Test message'
+        end
+      end
+
+      it 'still creates the email files' do
+        expect(Launchy).not_to receive(:open)
+
+        Mail.deliver do
+          from 'foo@example.com'
+          to   'bar@example.com'
+          body 'Test message'
+        end
+
+        expect(File.exist?(plain_file)).to be_truthy
+      end
+    end
+
+    context 'when open_in_browser is a proc' do
+      context 'returning true' do
+        before do
+          Mail.defaults do
+            delivery_method LetterOpener::DeliveryMethod, 
+              location: File.expand_path('../../../tmp/letter_opener', __FILE__),
+              open_in_browser: ->(mail) { mail.to.include?('important@example.com') }
+          end
+        end
+
+        it 'opens emails matching the condition' do
+          expect(Launchy).to receive(:open)
+
+          Mail.deliver do
+            from 'foo@example.com'
+            to   'important@example.com'
+            body 'Important message'
+          end
+        end
+
+        it 'does not open emails not matching the condition' do
+          expect(Launchy).not_to receive(:open)
+
+          Mail.deliver do
+            from 'foo@example.com'
+            to   'regular@example.com'
+            body 'Regular message'
+          end
+        end
+      end
+
+      context 'with access to mail properties' do
+        before do
+          Mail.defaults do
+            delivery_method LetterOpener::DeliveryMethod, 
+              location: File.expand_path('../../../tmp/letter_opener', __FILE__),
+              open_in_browser: ->(mail) { 
+                mail.subject && mail.subject.include?('urgent')
+              }
+          end
+        end
+
+        it 'opens emails with urgent subject' do
+          expect(Launchy).to receive(:open)
+
+          Mail.deliver do
+            from    'foo@example.com'
+            to      'bar@example.com'
+            subject 'urgent: Please review'
+            body    'Important message'
+          end
+        end
+
+        it 'does not open emails without urgent subject' do
+          expect(Launchy).not_to receive(:open)
+
+          Mail.deliver do
+            from    'foo@example.com'
+            to      'bar@example.com'
+            subject 'Regular update'
+            body    'Regular message'
+          end
+        end
+      end
+    end
+
+    context 'when open_in_browser is set via delivery_method options' do
+      it 'overrides the global configuration when false' do
+        expect(Launchy).not_to receive(:open)
+
+        Mail.defaults do
+          delivery_method LetterOpener::DeliveryMethod, 
+            location: File.expand_path('../../../tmp/letter_opener', __FILE__),
+            open_in_browser: false
+        end
+
+        Mail.deliver do
+          from 'foo@example.com'
+          to   'bar@example.com'
+          body 'Test message'
+        end
+      end
+
+      it 'overrides the global configuration when proc' do
+        expect(Launchy).to receive(:open)
+
+        Mail.defaults do
+          delivery_method LetterOpener::DeliveryMethod, 
+            location: File.expand_path('../../../tmp/letter_opener', __FILE__),
+            open_in_browser: ->(mail) { mail.to.include?('special@example.com') }
+        end
+
+        Mail.deliver do
+          from 'foo@example.com'
+          to   'special@example.com'
+          body 'Test message'
+        end
+      end
+    end
+  end
 end
